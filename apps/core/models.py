@@ -1,0 +1,129 @@
+from django.db import models
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+
+class BusinessProcess(models.Model):
+    """Модель бизнес-процесса"""
+    
+    CRITICALITY_CHOICES = [
+        ('low', 'Низкая'),
+        ('medium', 'Средняя'),
+        ('high', 'Высокая'),
+        ('critical', 'Критическая'),
+    ]
+    
+    name = models.CharField('Название', max_length=255)
+    description = models.TextField('Описание', blank=True)
+    owner = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='business_processes',
+        verbose_name='Владелец'
+    )
+    criticality = models.CharField(
+        'Критичность',
+        max_length=20,
+        choices=CRITICALITY_CHOICES,
+        default='medium'
+    )
+    created_at = models.DateTimeField('Дата создания', auto_now_add=True)
+    updated_at = models.DateTimeField('Дата обновления', auto_now=True)
+    is_active = models.BooleanField('Активен', default=True)
+    
+    class Meta:
+        verbose_name = 'Бизнес-процесс'
+        verbose_name_plural = 'Бизнес-процессы'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return self.name
+    
+    @property
+    def vulnerability_count(self):
+        """Количество уязвимостей"""
+        return self.vulnerabilities.count()
+    
+    @property
+    def risk_score(self):
+        """Общий уровень риска"""
+        vulnerabilities = self.vulnerabilities.all()
+        if not vulnerabilities:
+            return 0
+        return sum(v.severity_score for v in vulnerabilities) / len(vulnerabilities)
+
+
+class Vulnerability(models.Model):
+    """Модель уязвимости"""
+    
+    SEVERITY_CHOICES = [
+        (1, 'Незначительная'),
+        (2, 'Низкая'),
+        (3, 'Средняя'),
+        (4, 'Высокая'),
+        (5, 'Критическая'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('open', 'Открыта'),
+        ('in_progress', 'В работе'),
+        ('resolved', 'Решена'),
+        ('closed', 'Закрыта'),
+    ]
+    
+    business_process = models.ForeignKey(
+        BusinessProcess,
+        on_delete=models.CASCADE,
+        related_name='vulnerabilities',
+        verbose_name='Бизнес-процесс'
+    )
+    title = models.CharField('Название', max_length=255)
+    description = models.TextField('Описание')
+    severity = models.IntegerField('Уровень серьезности', choices=SEVERITY_CHOICES, default=3)
+    status = models.CharField('Статус', max_length=20, choices=STATUS_CHOICES, default='open')
+    discovered_date = models.DateField('Дата обнаружения', auto_now_add=True)
+    resolved_date = models.DateField('Дата решения', null=True, blank=True)
+    
+    class Meta:
+        verbose_name = 'Уязвимость'
+        verbose_name_plural = 'Уязвимости'
+        ordering = ['-severity', '-discovered_date']
+    
+    def __str__(self):
+        return f"{self.title} ({self.get_severity_display()})"
+    
+    @property
+    def severity_score(self):
+        """Оценка серьезности от 0 до 100"""
+        return self.severity * 20
+
+
+class Recommendation(models.Model):
+    """Модель рекомендации"""
+    
+    PRIORITY_CHOICES = [
+        (1, 'Низкий'),
+        (2, 'Средний'),
+        (3, 'Высокий'),
+    ]
+    
+    vulnerability = models.ForeignKey(
+        Vulnerability,
+        on_delete=models.CASCADE,
+        related_name='recommendations',
+        verbose_name='Уязвимость'
+    )
+    title = models.CharField('Заголовок', max_length=255)
+    content = models.TextField('Содержание')
+    priority = models.IntegerField('Приоритет', choices=PRIORITY_CHOICES, default=2)
+    is_implemented = models.BooleanField('Выполнено', default=False)
+    created_at = models.DateTimeField('Дата создания', auto_now_add=True)
+    
+    class Meta:
+        verbose_name = 'Рекомендация'
+        verbose_name_plural = 'Рекомендации'
+        ordering = ['-priority', '-created_at']
+    
+    def __str__(self):
+        return self.title

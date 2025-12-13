@@ -1,0 +1,152 @@
+{% extends 'base.html' %}
+
+{% block title %}Дашборд - RiskMap{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2><i class="fas fa-tachometer-alt"></i> Личный кабинет</h2>
+        <div>
+            <span style="color: var(--light-text);">Пользователь:</span>
+            <strong>{{ user.username }}</strong>
+        </div>
+    </div>
+</div>
+
+<!-- Статистика -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon primary">
+            <i class="fas fa-bug"></i>
+        </div>
+        <div class="stat-content">
+            <h3>{{ stats.total }}</h3>
+            <p>Всего уязвимостей</p>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon danger">
+            <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <div class="stat-content">
+            <h3>{{ stats.high }}</h3>
+            <p>Высокая критичность</p>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon warning">
+            <i class="fas fa-exclamation-circle"></i>
+        </div>
+        <div class="stat-content">
+            <h3>{{ stats.medium }}</h3>
+            <p>Средняя критичность</p>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon success">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        <div class="stat-content">
+            <h3>{{ stats.resolved }}</h3>
+            <p>Устранено</p>
+        </div>
+    </div>
+</div>
+
+{% if business_process %}
+<!-- Информация о бизнес-процессе -->
+<div class="card">
+    <div class="card-header">
+        <h2><i class="fas fa-project-diagram"></i> Ваш бизнес-процесс</h2>
+        <a href="{% url 'core:business_process' %}" class="btn btn-primary">
+            <i class="fas fa-eye"></i> Просмотреть визуализацию
+        </a>
+    </div>
+    <div class="card-body">
+        <h3>{{ business_process.name }}</h3>
+        <p style="color: var(--light-text); margin-top: 0.5rem;">{{ business_process.description }}</p>
+        <div style="margin-top: 1rem;">
+            <small style="color: var(--light-text);">
+                <i class="fas fa-calendar"></i> Создан: {{ business_process.created_at|date:"d.m.Y H:i" }}
+            </small>
+        </div>
+    </div>
+</div>
+
+<!-- Топ уязвимостей -->
+<div class="card">
+    <div class="card-header">
+        <h2><i class="fas fa-list"></i> Топ-10 уязвимостей</h2>
+        <a href="{% url 'core:vulnerabilities' %}" class="btn btn-outline">
+            <i class="fas fa-list-ul"></i> Все уязвимости
+        </a>
+    </div>
+    <div class="card-body">
+        {% if vulnerability_relations %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Уязвимость</th>
+                    <th>Блок</th>
+                    <th>Критичность</th>
+                    <th>Влияние</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for rel in vulnerability_relations %}
+                <tr>
+                    <td>
+                        <strong>{{ rel.vulnerability.name }}</strong>
+                    </td>
+                    <td>{{ rel.process_block.name }}</td>
+                    <td>
+                        <span class="badge badge-{{ rel.vulnerability.criticality }}">
+                            {{ rel.vulnerability.get_criticality_display }}
+                        </span>
+                    </td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <div style="flex: 1; height: 8px; background: var(--light-bg); border-radius: 4px; overflow: hidden;">
+                                <div style="width: {{ rel.impact_level }}0%; height: 100%; background: 
+                                    {% if rel.impact_level >= 8 %}var(--danger-color)
+                                    {% elif rel.impact_level >= 5 %}var(--warning-color)
+                                    {% else %}var(--success-color){% endif %};
+                                "></div>
+                            </div>
+                            <span>{{ rel.impact_level }}/10</span>
+                        </div>
+                    </td>
+                    <td>
+                        <a href="{% url 'core:vulnerability_detail' rel.vulnerability.pk %}" class="btn btn-primary" style="padding: 0.5rem 1rem;">
+                            <i class="fas fa-info-circle"></i> Подробнее
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="text-align: center; color: var(--light-text); padding: 2rem;">
+            <i class="fas fa-check-circle" style="font-size: 3rem; display: block; margin-bottom: 1rem;"></i>
+            Уязвимости не обнаружены
+        </p>
+        {% endif %}
+    </div>
+</div>
+{% else %}
+<!-- Нет бизнес-процесса -->
+<div class="card" style="text-align: center; padding: 3rem;">
+    <div style="font-size: 4rem; color: var(--light-text); margin-bottom: 1rem;">
+        <i class="fas fa-inbox"></i>
+    </div>
+    <h3 style="margin-bottom: 1rem;">У вас пока нет бизнес-процесса</h3>
+    <p style="color: var(--light-text); margin-bottom: 2rem;">
+        Обратитесь к администратору для создания и настройки вашего бизнес-процесса
+    </p>
+</div>
+{% endif %}
+{% endblock %}

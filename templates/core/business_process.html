@@ -1,0 +1,355 @@
+{% extends 'base.html' %}
+
+{% block title %}Визуализация бизнес-процесса - RiskMap{% endblock %}
+
+{% block extra_css %}
+<style>
+    #process-network {
+        width: 100%;
+        height: 600px;
+        border: 2px solid var(--border-color);
+        border-radius: 12px;
+        background: #fafafa;
+        position: relative;
+    }
+    
+    .legend {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: white;
+        padding: 1rem;
+        border-radius: 8px;
+        box-shadow: var(--card-shadow);
+        z-index: 100;
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .legend-color {
+        width: 20px;
+        height: 20px;
+        border-radius: 4px;
+    }
+    
+    .controls-panel {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+    }
+    
+    .node-info {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        background: white;
+        padding: 1rem;
+        border-radius: 8px;
+        box-shadow: var(--card-shadow);
+        max-width: 300px;
+        display: none;
+        z-index: 100;
+    }
+    
+    .node-info.active {
+        display: block;
+        animation: fadeIn 0.3s ease;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2><i class="fas fa-project-diagram"></i> {{ business_process.name }}</h2>
+        <a href="{% url 'core:dashboard' %}" class="btn btn-outline">
+            <i class="fas fa-arrow-left"></i> Назад к дашборду
+        </a>
+    </div>
+    <div class="card-body">
+        <p style="color: var(--light-text); margin-bottom: 1.5rem;">
+            {{ business_process.description }}
+        </p>
+        
+        <!-- Панель управления -->
+        <div class="controls-panel">
+            <button class="btn btn-primary" onclick="fitNetwork()">
+                <i class="fas fa-expand"></i> По размеру экрана
+            </button>
+            <button class="btn btn-outline" onclick="resetZoom()">
+                <i class="fas fa-search-minus"></i> Сбросить масштаб
+            </button>
+            <button class="btn btn-outline" onclick="togglePhysics()">
+                <i class="fas fa-sync-alt"></i> Вкл/Выкл физику
+            </button>
+            <button class="btn btn-success" onclick="exportImage()">
+                <i class="fas fa-download"></i> Экспорт PNG
+            </button>
+        </div>
+        
+        <!-- Визуализация -->
+        <div style="position: relative;">
+            <div id="process-network"></div>
+            
+            <!-- Легенда -->
+            <div class="legend">
+                <h4 style="margin-bottom: 0.75rem; font-size: 0.9rem;">Уровень критичности:</h4>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #e74c3c;"></div>
+                    <span>Высокая</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #f39c12;"></div>
+                    <span>Средняя</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #27ae60;"></div>
+                    <span>Низкая/Нет</span>
+                </div>
+            </div>
+            
+            <!-- Информация о блоке -->
+            <div class="node-info" id="node-info">
+                <h4 id="node-title" style="margin-bottom: 0.5rem;"></h4>
+                <p id="node-description" style="color: var(--light-text); font-size: 0.9rem;"></p>
+                <div id="node-vulnerabilities" style="margin-top: 0.75rem;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Список уязвимостей блоков -->
+<div class="card">
+    <div class="card-header">
+        <h2><i class="fas fa-bug"></i> Уязвимости по блокам</h2>
+    </div>
+    <div class="card-body">
+        {% for block in blocks %}
+            {% if block.vulnerabilities.all %}
+            <div style="margin-bottom: 2rem;">
+                <h3 style="color: var(--primary-color); margin-bottom: 1rem;">
+                    <i class="fas fa-cube"></i> {{ block.name }}
+                </h3>
+                <div style="display: grid; gap: 1rem;">
+                    {% for rel in block.vulnerabilities.all %}
+                    <div style="padding: 1rem; background: var(--light-bg); border-radius: 8px; border-left: 4px solid 
+                        {% if rel.vulnerability.criticality == 'high' %}var(--danger-color)
+                        {% elif rel.vulnerability.criticality == 'medium' %}var(--warning-color)
+                        {% else %}var(--success-color){% endif %};">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div style="flex: 1;">
+                                <strong>{{ rel.vulnerability.name }}</strong>
+                                <p style="color: var(--light-text); margin-top: 0.25rem; font-size: 0.9rem;">
+                                    {{ rel.vulnerability.description|truncatewords:20 }}
+                                </p>
+                            </div>
+                            <div style="text-align: right; margin-left: 1rem;">
+                                <span class="badge badge-{{ rel.vulnerability.criticality }}">
+                                    {{ rel.vulnerability.get_criticality_display }}
+                                </span>
+                                <div style="margin-top: 0.5rem; font-size: 0.9rem; color: var(--light-text);">
+                                    Влияние: {{ rel.impact_level }}/10
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let network = null;
+let physicsEnabled = true;
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadNetworkVisualization();
+});
+
+async function loadNetworkVisualization() {
+    try {
+        // Загрузка данных из API
+        const response = await fetch('{% url "core:process_data_api" %}');
+        const data = await response.json();
+        
+        const container = document.getElementById('process-network');
+        
+        // Настройки визуализации
+        const options = {
+            nodes: {
+                shape: 'box',
+                margin: 10,
+                widthConstraint: {
+                    minimum: 100,
+                    maximum: 200
+                },
+                font: {
+                    size: 14,
+                    color: '#ffffff',
+                    face: 'Segoe UI'
+                },
+                borderWidth: 2,
+                borderWidthSelected: 4,
+                shadow: {
+                    enabled: true,
+                    color: 'rgba(0,0,0,0.2)',
+                    size: 10,
+                    x: 3,
+                    y: 3
+                }
+            },
+            edges: {
+                arrows: {
+                    to: {
+                        enabled: true,
+                        scaleFactor: 1.2
+                    }
+                },
+                smooth: {
+                    type: 'cubicBezier',
+                    forceDirection: 'horizontal',
+                    roundness: 0.4
+                },
+                width: 2,
+                color: {
+                    color: '#848484',
+                    highlight: '#3498db',
+                    hover: '#3498db'
+                }
+            },
+            layout: {
+                hierarchical: {
+                    enabled: true,
+                    direction: 'LR',
+                    sortMethod: 'directed',
+                    levelSeparation: 200,
+                    nodeSpacing: 150
+                }
+            },
+            physics: {
+                enabled: true,
+                hierarchicalRepulsion: {
+                    nodeDistance: 150
+                }
+            },
+            interaction: {
+                hover: true,
+                tooltipDelay: 200,
+                navigationButtons: true,
+                keyboard: true,
+                zoomView: true,
+                dragView: true
+            }
+        };
+        
+        // Создание сети
+        network = new vis.Network(container, data, options);
+        
+        // События
+        network.on('click', function(params) {
+            if (params.nodes.length > 0) {
+                showNodeInfo(params.nodes[0]);
+            } else {
+                hideNodeInfo();
+            }
+        });
+        
+        network.on('hoverNode', function(params) {
+            container.style.cursor = 'pointer';
+        });
+        
+        network.on('blurNode', function(params) {
+            container.style.cursor = 'default';
+        });
+        
+        // Автоматическая подгонка
+        setTimeout(() => {
+            network.fit({
+                animation: {
+                    duration: 1000,
+                    easingFunction: 'easeInOutQuad'
+                }
+            });
+        }, 500);
+        
+    } catch (error) {
+        console.error('Ошибка загрузки визуализации:', error);
+        document.getElementById('process-network').innerHTML = 
+            '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: var(--danger-color);">' +
+            '<i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-right: 1rem;"></i>' +
+            '<span>Ошибка загрузки визуализации</span></div>';
+    }
+}
+
+function showNodeInfo(nodeId) {
+    const nodeInfo = document.getElementById('node-info');
+    const blocks = {{ blocks|safe }};
+    
+    // Здесь нужно получить информацию о блоке по nodeId
+    // Упрощенная версия:
+    nodeInfo.classList.add('active');
+    document.getElementById('node-title').textContent = `Блок #${nodeId}`;
+    document.getElementById('node-description').textContent = 'Информация о блоке процесса';
+}
+
+function hideNodeInfo() {
+    document.getElementById('node-info').classList.remove('active');
+}
+
+function fitNetwork() {
+    if (network) {
+        network.fit({
+            animation: {
+                duration: 800,
+                easingFunction: 'easeInOutQuad'
+            }
+        });
+    }
+}
+
+function resetZoom() {
+    if (network) {
+        network.moveTo({
+            scale: 1,
+            animation: {
+                duration: 500,
+                easingFunction: 'easeInOutQuad'
+            }
+        });
+    }
+}
+
+function togglePhysics() {
+    if (network) {
+        physicsEnabled = !physicsEnabled;
+        network.setOptions({ physics: { enabled: physicsEnabled } });
+    }
+}
+
+function exportImage() {
+    if (network) {
+        const canvas = network.canvas.frame.canvas;
+        const link = document.createElement('a');
+        link.download = 'business-process.png';
+        link.href = canvas.toDataURL();
+        link.click();
+    }
+}
+</script>
+{% endblock %}

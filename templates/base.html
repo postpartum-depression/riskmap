@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>{% block title %}RiskMap - Анализ уязвимостей{% endblock %}</title>
+    
+    <!-- Vis.js для визуализации графов -->
+    <script src="https://cdn.jsdelivr.net/npm/vis-network@9.1.9/dist/vis-network.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/vis-network@9.1.9/dist/dist/vis-network.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome для иконок -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        /* === ГЛОБАЛЬНЫЕ СТИЛИ === */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            /* Цветовая палитра */
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --light-bg: #ecf0f1;
+            --dark-text: #2c3e50;
+            --light-text: #7f8c8d;
+            --border-color: #bdc3c7;
+            --card-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            --hover-shadow: 0 4px 16px rgba(0,0,0,0.15);
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background-attachment: fixed;
+            color: var(--dark-text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        
+        /* === НАВИГАЦИЯ === */
+        .navbar {
+            background: var(--primary-color);
+            color: white;
+            padding: 1rem 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        
+        .navbar-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .navbar-brand {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: white;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .navbar-brand i {
+            color: var(--secondary-color);
+        }
+        
+        .navbar-menu {
+            display: flex;
+            list-style: none;
+            gap: 1.5rem;
+            align-items: center;
+        }
+        
+        .navbar-menu a {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .navbar-menu a:hover {
+            background: rgba(52, 152, 219, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .navbar-menu a.active {
+            background: var(--secondary-color);
+        }
+        
+        /* === КОНТЕЙНЕР === */
+        .container {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+        
+        /* === КАРТОЧКИ === */
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--card-shadow);
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover {
+            box-shadow: var(--hover-shadow);
+            transform: translateY(-5px);
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--light-bg);
+        }
+        
+        .card-header h2 {
+            color: var(--primary-color);
+            font-size: 1.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .card-body {
+            color: var(--dark-text);
+        }
+        
+        /* === КНОПКИ === */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        
+        .btn-primary {
+            background: var(--secondary-color);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #2980b9;
+        }
+        
+        .btn-success {
+            background: var(--success-color);
+            color: white;
+        }
+        
+        .btn-danger {
+            background: var(--danger-color);
+            color: white;
+        }
+        
+        .btn-warning {
+            background: var(--warning-color);
+            color: white;
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--secondary-color);
+            color: var(--secondary-color);
+        }
+        
+        .btn-outline:hover {
+            background: var(--secondary-color);
+            color: white;
+        }
+        
+        /* === BADGES === */
+        .badge {
+            display: inline-block;
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .badge-high {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .badge-medium {
+            background: #f39c12;
+            color: white;
+        }
+        
+        .badge-low {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .badge-critical {
+            background: #8b0000;
+            color: white;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        /* === СООБЩЕНИЯ === */
+        .messages {
+            list-style: none;
+            margin-bottom: 2rem;
+        }
+        
+        .messages li {
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            animation: slideIn 0.5s ease;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        .messages .success {
+            background: #d4edda;
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+        
+        .messages .error {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+        
+        .messages .warning {
+            background: #fff3cd;
+            color: #856404;
+            border-left: 4px solid #ffc107;
+        }
+        
+        .messages .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-left: 4px solid #17a2b8;
+        }
+        
+        /* === ФОРМЫ === */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--dark-text);
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+        
+        /* === ТАБЛИЦЫ === */
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        
+        .table th,
+        .table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .table th {
+            background: var(--light-bg);
+            font-weight: 600;
+            color: var(--primary-color);
+            text-transform: uppercase;
+            font-size: 0.9rem;
+        }
+        
+        .table tr:hover {
+            background: rgba(52, 152, 219, 0.05);
+        }
+        
+        /* === СТАТИСТИЧЕСКИЕ КАРТОЧКИ === */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: var(--card-shadow);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--hover-shadow);
+        }
+        
+        .stat-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: white;
+        }
+        
+        .stat-icon.primary { background: var(--secondary-color); }
+        .stat-icon.danger { background: var(--danger-color); }
+        .stat-icon.warning { background: var(--warning-color); }
+        .stat-icon.success { background: var(--success-color); }
+        
+        .stat-content h3 {
+            font-size: 2rem;
+            color: var(--dark-text);
+            margin-bottom: 0.25rem;
+        }
+        
+        .stat-content p {
+            color: var(--light-text);
+            font-size: 0.9rem;
+        }
+        
+        /* === АДАПТИВНОСТЬ === */
+        @media (max-width: 768px) {
+            .navbar-container {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .navbar-menu {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .card {
+                padding: 1.5rem;
+            }
+        }
+        
+        /* === LOADER === */
+        .loader {
+            border: 4px solid var(--light-bg);
+            border-top: 4px solid var(--secondary-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 2rem auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Навигационная панель -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <a href="{% url 'core:home' %}" class="navbar-brand">
+                <i class="fas fa-shield-alt"></i>
+                RiskMap
+            </a>
+            <ul class="navbar-menu">
+                {% if user.is_authenticated %}
+                    <li><a href="{% url 'core:dashboard' %}">
+                        <i class="fas fa-tachometer-alt"></i> Дашборд
+                    </a></li>
+                    <li><a href="{% url 'core:process_list' %}">
+                        <i class="fas fa-project-diagram"></i> Процессы
+                    </a></li>
+                    <li><a href="{% url 'core:vulnerability_list' %}">
+                        <i class="fas fa-bug"></i> Уязвимости
+                    </a></li>
+                    <li><a href="{% url 'core:recommendations' %}">
+                        <i class="fas fa-lightbulb"></i> Рекомендации
+                    </a></li>
+                    <li><a href="{% url 'core:profile' %}">
+                        <i class="fas fa-user"></i> Профиль
+                    </a></li>
+                    {% if user.is_superuser %}
+                        <li><a href="{% url 'admin_panel:dashboard' %}">
+                            <i class="fas fa-user-shield"></i> Админ
+                        </a></li>
+                    {% endif %}
+                    <li><a href="{% url 'authentication:logout' %}">
+                        <i class="fas fa-sign-out-alt"></i> Выход ({{ user.username }})
+                    </a></li>
+                {% else %}
+                    <li><a href="{% url 'authentication:login' %}">
+                        <i class="fas fa-sign-in-alt"></i> Вход
+                    </a></li>
+                    <li><a href="{% url 'authentication:register' %}" class="btn btn-primary">
+                        <i class="fas fa-user-plus"></i> Регистрация
+                    </a></li>
+                {% endif %}
+            </ul>
+        </div>
+    </nav>
+    
+    <!-- Основной контент -->
+    <div class="container">
+        <!-- Сообщения -->
+        {% if messages %}
+            <ul class="messages">
+                {% for message in messages %}
+                    <li class="{{ message.tags }}">
+                        <i class="fas fa-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}exclamation-circle{% elif message.tags == 'warning' %}exclamation-triangle{% else %}info-circle{% endif %}"></i>
+                        {{ message }}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+        
+        {% block content %}{% endblock %}
+    </div>
+    
+    <!-- Глобальный JavaScript -->
+    <script>
+        // Автоматическое скрытие сообщений через 5 секунд
+        document.addEventListener('DOMContentLoaded', function() {
+            const messages = document.querySelectorAll('.messages li');
+            messages.forEach(message => {
+                setTimeout(() => {
+                    message.style.opacity = '0';
+                    setTimeout(() => message.remove(), 300);
+                }, 5000);
+            });
+        });
+        
+        // Подтверждение удаления
+        function confirmDelete(message) {
+            return confirm(message || 'Вы уверены, что хотите удалить?');
+        }
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

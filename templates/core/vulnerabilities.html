@@ -1,0 +1,213 @@
+{% extends 'base.html' %}
+
+{% block title %}Уязвимости - RiskMap{% endblock %}
+
+{% block extra_css %}
+<style>
+    .filter-panel {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: var(--card-shadow);
+        margin-bottom: 2rem;
+    }
+    
+    .filter-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+        align-items: end;
+    }
+    
+    .vulnerability-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    .vulnerability-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: var(--card-shadow);
+        transition: all 0.3s ease;
+        border-left: 4px solid var(--border-color);
+    }
+    
+    .vulnerability-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--hover-shadow);
+    }
+    
+    .vulnerability-card.high {
+        border-left-color: var(--danger-color);
+    }
+    
+    .vulnerability-card.medium {
+        border-left-color: var(--warning-color);
+    }
+    
+    .vulnerability-card.low {
+        border-left-color: var(--success-color);
+    }
+    
+    .search-box {
+        position: relative;
+    }
+    
+    .search-box input {
+        padding-left: 2.5rem;
+    }
+    
+    .search-box i {
+        position: absolute;
+        left: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--light-text);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2><i class="fas fa-bug"></i> Каталог уязвимостей</h2>
+        <span style="color: var(--light-text);">
+            Найдено: <strong>{{ vulnerabilities.count }}</strong>
+        </span>
+    </div>
+</div>
+
+<!-- Панель фильтрации -->
+<div class="filter-panel">
+    <form method="get" id="filter-form">
+        <div class="filter-row">
+            <!-- Поиск -->
+            <div class="form-group">
+                <label><i class="fas fa-search"></i> Поиск</label>
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" 
+                           name="search" 
+                           class="form-control" 
+                           placeholder="Название или описание..."
+                           value="{{ search_query }}"
+                           id="search-input">
+                </div>
+            </div>
+            
+            <!-- Фильтр по критичности -->
+            <div class="form-group">
+                <label><i class="fas fa-filter"></i> Критичность</label>
+                <select name="criticality" class="form-control" onchange="this.form.submit()">
+                    <option value="">Все уровни</option>
+                    <option value="high" {% if selected_criticality == 'high' %}selected{% endif %}>
+                        Высокая
+                    </option>
+                    <option value="medium" {% if selected_criticality == 'medium' %}selected{% endif %}>
+                        Средняя
+                    </option>
+                    <option value="low" {% if selected_criticality == 'low' %}selected{% endif %}>
+                        Низкая
+                    </option>
+                </select>
+            </div>
+            
+            <!-- Фильтр по типу атаки -->
+            <div class="form-group">
+                <label><i class="fas fa-shield-virus"></i> Тип атаки</label>
+                <input type="text" 
+                       name="attack_type" 
+                       class="form-control" 
+                       placeholder="SQL Injection, XSS..."
+                       value="{{ attack_type_filter }}">
+            </div>
+            
+            <!-- Кнопки -->
+            <div class="form-group">
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    <i class="fas fa-search"></i> Применить
+                </button>
+            </div>
+        </div>
+        
+        {% if search_query or selected_criticality or attack_type_filter %}
+        <div style="margin-top: 1rem;">
+            <a href="{% url 'core:vulnerabilities' %}" class="btn btn-outline">
+                <i class="fas fa-times"></i> Сбросить фильтры
+            </a>
+        </div>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Список уязвимостей -->
+{% if vulnerabilities %}
+<div class="vulnerability-grid">
+    {% for vulnerability in vulnerabilities %}
+    <div class="vulnerability-card {{ vulnerability.criticality }}">
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+            <h3 style="color: var(--primary-color); font-size: 1.2rem; flex: 1;">
+                {{ vulnerability.name }}
+            </h3>
+            <span class="badge badge-{{ vulnerability.criticality }}">
+                {{ vulnerability.get_criticality_display }}
+            </span>
+        </div>
+        
+        <p style="color: var(--light-text); margin-bottom: 1rem; font-size: 0.9rem;">
+            {{ vulnerability.description|truncatewords:25 }}
+        </p>
+        
+        {% if vulnerability.attack_type %}
+        <div style="margin-bottom: 1rem;">
+            <span style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0.75rem; background: var(--light-bg); border-radius: 20px; font-size: 0.85rem;">
+                <i class="fas fa-shield-virus"></i>
+                {{ vulnerability.attack_type }}
+            </span>
+        </div>
+        {% endif %}
+        
+        <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+            <a href="{% url 'core:vulnerability_detail' vulnerability.pk %}" class="btn btn-primary" style="flex: 1;">
+                <i class="fas fa-info-circle"></i> Подробнее
+            </a>
+        </div>
+        
+        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color); font-size: 0.85rem; color: var(--light-text);">
+            <i class="fas fa-lightbulb"></i> 
+            Рекомендаций: {{ vulnerability.recommendations.count }}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card" style="text-align: center; padding: 3rem;">
+    <div style="font-size: 4rem; color: var(--light-text); margin-bottom: 1rem;">
+        <i class="fas fa-search"></i>
+    </div>
+    <h3 style="margin-bottom: 1rem;">Уязвимости не найдены</h3>
+    <p style="color: var(--light-text);">
+        Попробуйте изменить параметры поиска или сбросить фильтры
+    </p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Живой поиск (опционально)
+const searchInput = document.getElementById('search-input');
+let searchTimeout;
+
+searchInput.addEventListener('input', function() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        // Можно реализовать AJAX поиск для мгновенных результатов
+        // Пока просто отправляем форму
+        // document.getElementById('filter-form').submit();
+    }, 500);
+});
+</script>
+{% endblock %}

@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+{% block title %}Регистрация - RiskMap{% endblock %}
+
+{% block content %}
+<div style="max-width: 600px; margin: 3rem auto;">
+    <div class="card">
+        <div class="card-header">
+            <h2><i class="fas fa-user-plus"></i> Регистрация нового пользователя</h2>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                
+                <div class="form-group">
+                    <label for="id_email">
+                        <i class="fas fa-envelope"></i> Email <span style="color: var(--danger-color);">*</span>
+                    </label>
+                    {{ form.email }}
+                    {% if form.email.errors %}
+                        <small style="color: var(--danger-color);">{{ form.email.errors.0 }}</small>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="id_username">
+                        <i class="fas fa-user"></i> Имя пользователя <span style="color: var(--danger-color);">*</span>
+                    </label>
+                    {{ form.username }}
+                    {% if form.username.errors %}
+                        <small style="color: var(--danger-color);">{{ form.username.errors.0 }}</small>
+                    {% endif %}
+                </div>
+                
+                <div class="form-group">
+                    <label for="id_password">
+                        <i class="fas fa-lock"></i> Пароль <span style="color: var(--danger-color);">*</span>
+                    </label>
+                    {{ form.password }}
+                    {% if form.password.errors %}
+                        <small style="color: var(--danger-color);">{{ form.password.errors.0 }}</small>
+                    {% endif %}
+                    <small style="color: var(--light-text); display: block; margin-top: 0.25rem;">
+                        Минимум 8 символов
+                    </small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="id_password_confirm">
+                        <i class="fas fa-lock"></i> Подтверждение пароля <span style="color: var(--danger-color);">*</span>
+                    </label>
+                    {{ form.password_confirm }}
+                    {% if form.password_confirm.errors %}
+                        <small style="color: var(--danger-color);">{{ form.password_confirm.errors.0 }}</small>
+                    {% endif %}
+                </div>
+                
+                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">
+                    <i class="fas fa-user-plus"></i> Зарегистрироваться
+                </button>
+                
+                <div style="text-align: center; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color);">
+                    Уже есть аккаунт? 
+                    <a href="{% url 'authentication:login' %}" style="color: var(--secondary-color); font-weight: 600;">
+                        Войдите
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
