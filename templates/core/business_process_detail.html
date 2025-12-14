@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ process.name }} - RiskMap{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Заголовок -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2">{{ process.name }}</h1>
+            <p class="text-muted">Создан: {{ process.created_at|date:"d.m.Y в H:i" }}</p>
+        </div>
+        <div class="btn-group">
+            <a href="{% url 'core:process_edit' process.pk %}" class="btn btn-warning">
+                <i class="fas fa-edit"></i> Редактировать
+            </a>
+            <a href="{% url 'core:process_delete' process.pk %}" class="btn btn-danger">
+                <i class="fas fa-trash"></i> Удалить
+            </a>
+        </div>
+    </div>
+
+    <!-- Основная информация -->
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header">
+                    <h5 class="mb-0">Информация о процессе</h5>
+                </div>
+                <div class="card-body">
+                    <h6 class="fw-bold mb-2">Описание:</h6>
+                    <p class="text-muted">{{ process.description|linebreaks }}</p>
+                    
+                    <h6 class="fw-bold mb-2 mt-3">Критичность:</h6>
+                    <span class="badge bg-{% if process.criticality == 'critical' %}danger{% elif process.criticality == 'high' %}warning{% else %}info{% endif %} fs-6">
+                        {{ process.get_criticality_display }}
+                    </span>
+                    
+                    <h6 class="fw-bold mb-2 mt-3">Статус:</h6>
+                    {% if process.is_active %}
+                        <span class="badge bg-success fs-6">Активен</span>
+                    {% else %}
+                        <span class="badge bg-secondary fs-6">Неактивен</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Статистика -->
+        <div class="col-lg-4">
+            <div class="card shadow mb-3">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Статистика</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h6 class="text-muted">Всего уязвимостей</h6>
+                        <h3 class="text-primary">{{ stats.total }}</h3>
+                    </div>
+                    <hr>
+                    <div class="mb-3">
+                        <small class="text-muted">
+                            <i class="fas fa-circle text-danger"></i> Критические: <strong>{{ stats.critical }}</strong>
+                        </small>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted">
+                            <i class="fas fa-circle text-warning"></i> Высокие: <strong>{{ stats.high }}</strong>
+                        </small>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted">
+                            <i class="fas fa-circle text-success"></i> Открыты: <strong>{{ stats.open }}</strong>
+                        </small>
+                    </div>
+                    <div>
+                        <small class="text-muted">
+                            <i class="fas fa-circle text-info"></i> Решены: <strong>{{ stats.resolved }}</strong>
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Уязвимости -->
+    <div class="card shadow">
+        <div class="card-header">
+            <h5 class="mb-0">Уязвимости ({{ vulnerabilities.count }})</h5>
+        </div>
+        <div class="card-body">
+            {% if vulnerabilities %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Название</th>
+                                <th>Уровень</th>
+                                <th>Статус</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for vuln in vulnerabilities %}
+                            <tr>
+                                <td>
+                                    <strong>{{ vuln.title }}</strong>
+                                    {% if vuln.is_auto_detected %}
+                                        <span class="badge bg-info ms-2" title="Автоматически обнаружена">🤖</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-{% if vuln.severity == 5 %}danger{% elif vuln.severity == 4 %}warning{% elif vuln.severity == 3 %}info{% else %}secondary{% endif %}">
+                                        {{ vuln.get_severity_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{% if vuln.status == 'open' %}danger{% elif vuln.status == 'in_progress' %}warning{% elif vuln.status == 'resolved' %}success{% else %}secondary{% endif %}">
+                                        {{ vuln.get_status_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="{% url 'core:vulnerability_detail' vuln.pk %}" class="btn btn-sm btn-outline-primary">
+                                        Подробнее
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-muted text-center py-4">
+                    <i class="fas fa-check-circle" style="font-size: 2rem; display: block; margin-bottom: 0.5rem;"></i>
+                    Уязвимостей не обнаружено! 🎉
+                </p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

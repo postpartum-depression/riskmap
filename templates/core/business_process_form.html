@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }} - RiskMap{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">{{ title }}</h3>
+                </div>
+                <div class="card-body p-4">
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <!-- Название -->
+                        <div class="mb-3">
+                            <label for="id_name" class="form-label fw-bold">Название процесса <span class="text-danger">*</span></label>
+                            {{ form.name }}
+                            {% if form.name.errors %}
+                                <div class="alert alert-danger mt-2">{{ form.name.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Описание -->
+                        <div class="mb-3">
+                            <label for="id_description" class="form-label fw-bold">Описание</label>
+                            {{ form.description }}
+                            <small class="text-muted d-block mt-2">
+                                💡 Подробное описание поможет системе автоматически выявить потенциальные уязвимости.
+                            </small>
+                            {% if form.description.errors %}
+                                <div class="alert alert-danger mt-2">{{ form.description.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Критичность -->
+                        <div class="mb-3">
+                            <label for="id_criticality" class="form-label fw-bold">Уровень критичности</label>
+                            {{ form.criticality }}
+                            <small class="text-muted d-block mt-2">
+                                Насколько этот процесс важен для бизнеса?
+                            </small>
+                        </div>
+
+                        <!-- Активен -->
+                        <div class="mb-3 form-check">
+                            {{ form.is_active }}
+                            <label class="form-check-label" for="id_is_active">
+                                Процесс активен
+                            </label>
+                        </div>
+
+                        <!-- Кнопки -->
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-save"></i> Сохранить
+                            </button>
+                            <a href="{% url 'core:process_list' %}" class="btn btn-secondary btn-lg">
+                                <i class="fas fa-times"></i> Отмена
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

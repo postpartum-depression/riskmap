@@ -1,0 +1,111 @@
+{% extends 'base.html' %}
+
+{% block title %}Бизнес-процессы - RiskMap{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Заголовок и кнопки -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2">📊 Бизнес-процессы</h1>
+        <div class="btn-group">
+            <a href="{% url 'core:process_create' %}" class="btn btn-success">
+                <i class="fas fa-plus"></i> Добавить процесс
+            </a>
+        </div>
+    </div>
+
+    <!-- Сообщения -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Список процессов -->
+    {% if processes %}
+        <div class="row">
+            {% for process in processes %}
+            <div class="col-lg-6 col-xl-4 mb-4">
+                <div class="card shadow h-100">
+                    <div class="card-body">
+                        <!-- Заголовок и статус -->
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h5 class="card-title">{{ process.name }}</h5>
+                            <span class="badge bg-{% if process.criticality == 'critical' %}danger{% elif process.criticality == 'high' %}warning{% else %}info{% endif %}">
+                                {{ process.get_criticality_display }}
+                            </span>
+                        </div>
+
+                        <!-- Описание -->
+                        <p class="card-text text-muted">
+                            {% if process.description %}
+                                {{ process.description|truncatewords:15 }}
+                            {% else %}
+                                <em>Нет описания</em>
+                            {% endif %}
+                        </p>
+
+                        <!-- Статистика -->
+                        <div class="mb-3">
+                            <small class="text-muted d-block">
+                                <i class="fas fa-bug"></i> Уязвимостей: <strong>{{ process.vulnerability_count }}</strong>
+                            </small>
+                            <small class="text-muted d-block">
+                                <i class="fas fa-chart-line"></i> Уровень риска: 
+                                <strong>
+                                    {% if process.risk_score >= 80 %}
+                                        <span class="text-danger">🔴 Критический</span>
+                                    {% elif process.risk_score >= 60 %}
+                                        <span class="text-warning">🟠 Высокий</span>
+                                    {% elif process.risk_score >= 40 %}
+                                        <span class="text-info">🟡 Средний</span>
+                                    {% else %}
+                                        <span class="text-success">🟢 Низкий</span>
+                                    {% endif %}
+                                </strong>
+                            </small>
+                            <small class="text-muted d-block">
+                                <i class="fas fa-calendar"></i> Создан: {{ process.created_at|date:"d.m.Y" }}
+                            </small>
+                        </div>
+
+                        <!-- Прогресс-бар риска -->
+                        <div class="progress mb-3" style="height: 8px;">
+                            <div 
+                                class="progress-bar {% if process.risk_score >= 80 %}bg-danger{% elif process.risk_score >= 60 %}bg-warning{% elif process.risk_score >= 40 %}bg-info{% else %}bg-success{% endif %}" 
+                                style="width: {{ process.risk_score }}%"
+                            ></div>
+                        </div>
+
+                        <!-- Кнопки действий -->
+                        <div class="btn-group btn-group-sm w-100" role="group">
+                            <a href="{% url 'core:process_detail' process.pk %}" class="btn btn-outline-primary">
+                                <i class="fas fa-eye"></i> Подробнее
+                            </a>
+                            <a href="{% url 'core:process_edit' process.pk %}" class="btn btn-outline-warning">
+                                <i class="fas fa-edit"></i> Редактировать
+                            </a>
+                            <a href="{% url 'core:process_delete' process.pk %}" class="btn btn-outline-danger">
+                                <i class="fas fa-trash"></i> Удалить
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="card text-center p-5">
+            <div style="font-size: 4rem; margin-bottom: 1rem;">📭</div>
+            <h3>Нет процессов</h3>
+            <p class="text-muted mb-3">У вас пока нет ни одного бизнес-процесса.</p>
+            <a href="{% url 'core:process_create' %}" class="btn btn-primary btn-lg">
+                <i class="fas fa-plus"></i> Создать первый процесс
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -127,3 +127,40 @@ class Recommendation(models.Model):
     
     def __str__(self):
         return self.title
+
+class AuditLog(models.Model):
+    """Логирование всех изменений уязвимостей"""
+    
+    ACTION_CHOICES = [
+        ('created', 'Создана'),
+        ('status_changed', 'Изменен статус'),
+        ('assigned', 'Назначена'),
+        ('description_changed', 'Изменено описание'),
+        ('resolved', 'Решена'),
+    ]
+    
+    vulnerability = models.ForeignKey(
+        Vulnerability,
+        on_delete=models.CASCADE,
+        related_name='audit_logs',
+        verbose_name='Уязвимость'
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        verbose_name='Пользователь'
+    )
+    action = models.CharField('Действие', max_length=50, choices=ACTION_CHOICES)
+    old_value = models.TextField('Старое значение', blank=True, null=True)
+    new_value = models.TextField('Новое значение', blank=True, null=True)
+    timestamp = models.DateTimeField('Время', auto_now_add=True)
+    comment = models.TextField('Комментарий', blank=True)
+
+    class Meta:
+        verbose_name = 'Лог аудита'
+        verbose_name_plural = 'Логи аудита'
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"{self.vulnerability.title} - {self.get_action_display()} ({self.timestamp})"

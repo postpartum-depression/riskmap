@@ -3,150 +3,241 @@
 {% block title %}Дашборд - RiskMap{% endblock %}
 
 {% block content %}
-<div class="card">
-    <div class="card-header">
-        <h2><i class="fas fa-tachometer-alt"></i> Личный кабинет</h2>
-        <div>
-            <span style="color: var(--light-text);">Пользователь:</span>
-            <strong>{{ user.username }}</strong>
-        </div>
-    </div>
-</div>
-
-<!-- Статистика -->
-<div class="stats-grid">
-    <div class="stat-card">
-        <div class="stat-icon primary">
-            <i class="fas fa-bug"></i>
-        </div>
-        <div class="stat-content">
-            <h3>{{ stats.total }}</h3>
-            <p>Всего уязвимостей</p>
-        </div>
-    </div>
+<div class="container-fluid py-4">
     
-    <div class="stat-card">
-        <div class="stat-icon danger">
-            <i class="fas fa-exclamation-triangle"></i>
-        </div>
-        <div class="stat-content">
-            <h3>{{ stats.high }}</h3>
-            <p>Высокая критичность</p>
-        </div>
-    </div>
-    
-    <div class="stat-card">
-        <div class="stat-icon warning">
-            <i class="fas fa-exclamation-circle"></i>
-        </div>
-        <div class="stat-content">
-            <h3>{{ stats.medium }}</h3>
-            <p>Средняя критичность</p>
+    <!-- Заголовок страницы -->
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom">
+        <h1 class="h2">Дашборд рисков</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group me-2">
+                <a href="{% url 'core:process_list' %}" class="btn btn-sm btn-outline-primary">Процессы</a>
+                <a href="{% url 'core:vulnerability_list' %}" class="btn btn-sm btn-outline-primary">Уязвимости</a>
+            </div>
         </div>
     </div>
-    
-    <div class="stat-card">
-        <div class="stat-icon success">
-            <i class="fas fa-check-circle"></i>
-        </div>
-        <div class="stat-content">
-            <h3>{{ stats.resolved }}</h3>
-            <p>Устранено</p>
-        </div>
-    </div>
-</div>
 
-{% if business_process %}
-<!-- Информация о бизнес-процессе -->
-<div class="card">
-    <div class="card-header">
-        <h2><i class="fas fa-project-diagram"></i> Ваш бизнес-процесс</h2>
-        <a href="{% url 'core:business_process' %}" class="btn btn-primary">
-            <i class="fas fa-eye"></i> Просмотреть визуализацию
-        </a>
-    </div>
-    <div class="card-body">
-        <h3>{{ business_process.name }}</h3>
-        <p style="color: var(--light-text); margin-top: 0.5rem;">{{ business_process.description }}</p>
-        <div style="margin-top: 1rem;">
-            <small style="color: var(--light-text);">
-                <i class="fas fa-calendar"></i> Создан: {{ business_process.created_at|date:"d.m.Y H:i" }}
-            </small>
-        </div>
-    </div>
-</div>
-
-<!-- Топ уязвимостей -->
-<div class="card">
-    <div class="card-header">
-        <h2><i class="fas fa-list"></i> Топ-10 уязвимостей</h2>
-        <a href="{% url 'core:vulnerabilities' %}" class="btn btn-outline">
-            <i class="fas fa-list-ul"></i> Все уязвимости
-        </a>
-    </div>
-    <div class="card-body">
-        {% if vulnerability_relations %}
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>Уязвимость</th>
-                    <th>Блок</th>
-                    <th>Критичность</th>
-                    <th>Влияние</th>
-                    <th>Действия</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for rel in vulnerability_relations %}
-                <tr>
-                    <td>
-                        <strong>{{ rel.vulnerability.name }}</strong>
-                    </td>
-                    <td>{{ rel.process_block.name }}</td>
-                    <td>
-                        <span class="badge badge-{{ rel.vulnerability.criticality }}">
-                            {{ rel.vulnerability.get_criticality_display }}
-                        </span>
-                    </td>
-                    <td>
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            <div style="flex: 1; height: 8px; background: var(--light-bg); border-radius: 4px; overflow: hidden;">
-                                <div style="width: {{ rel.impact_level }}0%; height: 100%; background: 
-                                    {% if rel.impact_level >= 8 %}var(--danger-color)
-                                    {% elif rel.impact_level >= 5 %}var(--warning-color)
-                                    {% else %}var(--success-color){% endif %};
-                                "></div>
-                            </div>
-                            <span>{{ rel.impact_level }}/10</span>
+    <!-- Карточки статистики (KPI) -->
+    <div class="row mb-4">
+        <!-- Всего уязвимостей -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-start border-4 border-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs fw-bold text-primary text-uppercase mb-1">Всего уязвимостей</div>
+                            <div class="h5 mb-0 fw-bold text-gray-800">{{ stats.total }}</div>
                         </div>
-                    </td>
-                    <td>
-                        <a href="{% url 'core:vulnerability_detail' rel.vulnerability.pk %}" class="btn btn-primary" style="padding: 0.5rem 1rem;">
-                            <i class="fas fa-info-circle"></i> Подробнее
-                        </a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <p style="text-align: center; color: var(--light-text); padding: 2rem;">
-            <i class="fas fa-check-circle" style="font-size: 3rem; display: block; margin-bottom: 1rem;"></i>
-            Уязвимости не обнаружены
-        </p>
-        {% endif %}
+                        <div class="col-auto">
+                            <!-- Используем простые символы если нет FontAwesome, или иконки Bootstrap -->
+                            <div style="font-size: 2rem; color: #dddfeb;">🐞</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Высокий риск -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-start border-4 border-danger shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs fw-bold text-danger text-uppercase mb-1">Высокий риск</div>
+                            <div class="h5 mb-0 fw-bold text-gray-800">{{ stats.high }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <div style="font-size: 2rem; color: #dddfeb;">⚠️</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Устранено -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-start border-4 border-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs fw-bold text-success text-uppercase mb-1">Устранено</div>
+                            <div class="h5 mb-0 fw-bold text-gray-800">{{ stats.resolved }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <div style="font-size: 2rem; color: #dddfeb;">✅</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Активные процессы -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-start border-4 border-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs fw-bold text-info text-uppercase mb-1">Активных процессов</div>
+                            <div class="h5 mb-0 fw-bold text-gray-800">{{ processes_count }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <div style="font-size: 2rem; color: #dddfeb;">📊</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Секция графиков -->
+    <div class="row">
+        <!-- Bar Chart: Риски по процессам -->
+        <div class="col-xl-8 col-lg-7">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 fw-bold text-primary">Топ рискованных процессов</h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-area" style="position: relative; height: 300px;">
+                        <canvas id="riskBarChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pie Chart: Статусы -->
+        <div class="col-xl-4 col-lg-5">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 fw-bold text-primary">Статусы уязвимостей</h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-pie pt-4 pb-2" style="position: relative; height: 300px;">
+                        <canvas id="statusPieChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
-{% else %}
-<!-- Нет бизнес-процесса -->
-<div class="card" style="text-align: center; padding: 3rem;">
-    <div style="font-size: 4rem; color: var(--light-text); margin-bottom: 1rem;">
-        <i class="fas fa-inbox"></i>
-    </div>
-    <h3 style="margin-bottom: 1rem;">У вас пока нет бизнес-процесса</h3>
-    <p style="color: var(--light-text); margin-bottom: 2rem;">
-        Обратитесь к администратору для создания и настройки вашего бизнес-процесса
-    </p>
-</div>
-{% endif %}
+
+<!-- Подключаем библиотеку Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    // Настройки цветов
+    const colors = {
+        primary: '#4e73df',
+        success: '#1cc88a',
+        info: '#36b9cc',
+        warning: '#f6c23e',
+        danger: '#e74a3b',
+        secondary: '#858796',
+        light: '#f8f9fc',
+    };
+
+    // --- График 1: Bar Chart (Риски процессов) ---
+    const ctxBar = document.getElementById('riskBarChart').getContext('2d');
+    
+    // Проверка, есть ли данные
+    const riskLabels = {{ risk_chart_labels|safe }};
+    const riskData = {{ risk_chart_data|safe }};
+
+    if (riskLabels.length > 0) {
+        new Chart(ctxBar, {
+            type: 'bar',
+            data: {
+                labels: riskLabels,
+                datasets: [{
+                    label: 'Уровень риска (Score)',
+                    data: riskData,
+                    backgroundColor: colors.primary,
+                    hoverBackgroundColor: '#2e59d9',
+                    borderColor: '#4e73df',
+                    borderRadius: 5, // Скругление углов столбцов
+                    maxBarThickness: 50,
+                }],
+            },
+            options: {
+                maintainAspectRatio: false,
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100, // Максимальный риск - 100
+                        grid: {
+                            borderDash: [2],
+                            drawBorder: false,
+                            color: "rgb(234, 236, 244)",
+                            zeroLineColor: "rgb(234, 236, 244)",
+                        },
+                        title: {
+                            display: true,
+                            text: 'Баллы риска (0-100)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false,
+                            drawBorder: false
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    } else {
+        // Если данных нет, пишем текст на канвасе
+        ctxBar.font = "16px Arial";
+        ctxBar.fillStyle = "gray";
+        ctxBar.textAlign = "center";
+        ctxBar.fillText("Нет данных о процессах", ctxBar.canvas.width/2, ctxBar.canvas.height/2);
+    }
+
+    // --- График 2: Doughnut Chart (Статусы) ---
+    const ctxPie = document.getElementById('statusPieChart').getContext('2d');
+    
+    // Получаем данные
+    const openCount = {{ status_chart_open }};
+    const progressCount = {{ status_chart_in_progress }};
+    const resolvedCount = {{ status_chart_resolved }};
+    const closedCount = {{ status_chart_closed }};
+    const totalStatus = openCount + progressCount + resolvedCount + closedCount;
+
+    if (totalStatus > 0) {
+        new Chart(ctxPie, {
+            type: 'doughnut',
+            data: {
+                labels: ['Открыта', 'В работе', 'Решена', 'Закрыта'],
+                datasets: [{
+                    data: [openCount, progressCount, resolvedCount, closedCount],
+                    backgroundColor: [colors.danger, colors.warning, colors.success, colors.secondary],
+                    hoverBackgroundColor: ['#be2617', '#dda20a', '#17a673', '#60616f'],
+                    hoverBorderColor: "rgba(234, 236, 244, 1)",
+                    borderWidth: 2
+                }],
+            },
+            options: {
+                maintainAspectRatio: false,
+                responsive: true,
+                cutout: '70%', // Размер дырки бублика
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 20
+                        }
+                    }
+                }
+            }
+        });
+    } else {
+        ctxPie.font = "16px Arial";
+        ctxPie.fillStyle = "gray";
+        ctxPie.textAlign = "center";
+        ctxPie.fillText("Нет уязвимостей", ctxPie.canvas.width/2, ctxPie.canvas.height/2);
+    }
+</script>
 {% endblock %}
