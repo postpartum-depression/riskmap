@@ -38,10 +38,16 @@
             {% endif %}
             
             <div style="margin-top: 2rem; display: flex; gap: 1rem;">
+                <!-- Кнопка Назад -->
                 <a href="{% url 'core:dashboard' %}" class="btn btn-primary">
                     <i class="fas fa-arrow-left"></i> Назад к дашборду
                 </a>
+
+                <a href="{% url 'authentication:password_change' %}" class="btn btn-warning text-dark">
+                    <i class="fas fa-lock"></i> Сменить пароль
+                </a>
             </div>
+
         </div>
     </div>
 </div>

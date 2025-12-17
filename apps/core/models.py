@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 
+# 1. СНАЧАЛА БИЗНЕС-ПРОЦЕСС
 class BusinessProcess(models.Model):
     """Модель бизнес-процесса"""
     
@@ -54,6 +55,36 @@ class BusinessProcess(models.Model):
         return sum(v.severity_score for v in vulnerabilities) / len(vulnerabilities)
 
 
+# 2. ПОТОМ ШАГИ (ProcessStep)
+class ProcessStep(models.Model):
+    """Шаг (этап) бизнес-процесса"""
+    business_process = models.ForeignKey(BusinessProcess, on_delete=models.CASCADE, related_name='steps')
+    name = models.CharField(max_length=100, verbose_name="Название шага")
+    description = models.TextField(blank=True, verbose_name="Описание")
+    order = models.PositiveIntegerField(default=0, verbose_name="Порядок")
+    color = models.CharField(
+        max_length=20, 
+        default='primary',
+        choices=[
+            ('primary', 'Синий'),
+            ('danger', 'Красный'),
+            ('warning', 'Желтый'),
+            ('success', 'Зеленый'),
+            ('info', 'Голубой'),
+        ],
+        verbose_name="Цвет"
+    )
+
+    class Meta:
+        ordering = ['order']
+        verbose_name = "Шаг процесса"
+        verbose_name_plural = "Шаги процесса"
+
+    def __str__(self):
+        return f"{self.name} ({self.business_process.name})"
+
+
+# 3. ПОТОМ УЯЗВИМОСТЬ (Знает про BusinessProcess и ProcessStep)
 class Vulnerability(models.Model):
     """Модель уязвимости"""
     
@@ -78,6 +109,17 @@ class Vulnerability(models.Model):
         related_name='vulnerabilities',
         verbose_name='Бизнес-процесс'
     )
+
+    # Связь с шагом
+    step = models.ForeignKey(
+        ProcessStep,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='vulnerabilities',
+        verbose_name='Связанный шаг'
+    )
+
     title = models.CharField('Название', max_length=255)
     description = models.TextField('Описание')
     severity = models.IntegerField('Уровень серьезности', choices=SEVERITY_CHOICES, default=3)
@@ -99,6 +141,7 @@ class Vulnerability(models.Model):
         return self.severity * 20
 
 
+# 4. ПОТОМ РЕКОМЕНДАЦИИ (Знает про Vulnerability)
 class Recommendation(models.Model):
     """Модель рекомендации"""
     
@@ -128,6 +171,8 @@ class Recommendation(models.Model):
     def __str__(self):
         return self.title
 
+
+# 5. ПОТОМ ЛОГИ (Знает про Vulnerability)
 class AuditLog(models.Model):
     """Логирование всех изменений уязвимостей"""
     

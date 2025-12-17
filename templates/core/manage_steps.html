@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+
+{% block title %}Управление шагами: {{ process.name }} - RiskMap{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-tasks"></i> Шаги процесса: {{ process.name }}</h2>
+        <a href="{% url 'core:process_detail' process.pk %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Назад
+        </a>
+    </div>
+
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Редактирование шагов</h5>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                
+                <!-- Скрытые поля для FormSet (TOTAL_FORMS, INITIAL_FORMS и т.д.) -->
+                {{ formset.management_form }}
+                
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead class="bg-light">
+                            <tr>
+                                <th>Название</th>
+                                <th>Описание</th>
+                                <th>Порядок</th>
+                                <th>Цвет</th>
+                                <th class="text-center">Удалить</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for form in formset %}
+                                <tr>
+                                    {# ВАЖНО: Выводим скрытые поля, включая ID, иначе редактирование не сработает #}
+                                    {% for hidden in form.hidden_fields %}
+                                        {{ hidden }}
+                                    {% endfor %}
+
+                                    <td>
+                                        {{ form.name }}
+                                        {% if form.name.errors %}
+                                            <div class="alert alert-danger mt-1 py-1 small">{{ form.name.errors.0 }}</div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {{ form.description }}
+                                        {% if form.description.errors %}
+                                            <div class="alert alert-danger mt-1 py-1 small">{{ form.description.errors.0 }}</div>
+                                        {% endif %}
+                                    </td>
+                                    <td style="width: 100px;">
+                                        {{ form.order }}
+                                        {% if form.order.errors %}
+                                            <div class="alert alert-danger mt-1 py-1 small">{{ form.order.errors.0 }}</div>
+                                        {% endif %}
+                                    </td>
+                                    <td style="width: 150px;">
+                                        {{ form.color }}
+                                        {% if form.color.errors %}
+                                            <div class="alert alert-danger mt-1 py-1 small">{{ form.color.errors.0 }}</div>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {# Показываем чекбокс удаления только если это не новая (пустая) форма #}
+                                        {% if form.instance.pk %}
+                                            {{ form.DELETE }}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="alert alert-info mt-3 d-flex align-items-center">
+                    <i class="fas fa-info-circle me-2 fs-4"></i>
+                    <div>
+                        <strong>Как пользоваться:</strong><br>
+                        1. Измените существующие шаги и нажмите "Сохранить".<br>
+                        2. Чтобы добавить шаг, заполните <strong>последнюю пустую строку</strong>.<br>
+                        3. Чтобы удалить шаг, поставьте галочку в колонке "Удалить" и нажмите "Сохранить".
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 mt-4">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fas fa-save"></i> Сохранить изменения
+                    </button>
+                    <a href="{% url 'core:process_detail' process.pk %}" class="btn btn-secondary btn-lg">
+                        <i class="fas fa-times"></i> Отмена
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .form-control, .form-select {
+        padding: 0.5rem;
+        font-size: 0.9rem;
+    }
+    /* Делаем чекбокс удаления заметным */
+    input[type=checkbox][name$="-DELETE"] {
+        transform: scale(1.5);
+        margin-top: 10px;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}

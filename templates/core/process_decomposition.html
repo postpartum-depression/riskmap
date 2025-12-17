@@ -1,0 +1,235 @@
+{% extends 'base.html' %}
+
+{% block title %}Визуализация: {{ process.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    
+    <!-- Заголовок -->
+    <div class="d-flex justify-content-between align-items-center mb-5">
+        <h2 class="fw-bold text-dark">Визуализация процесса: {{ process.name }}</h2>
+        <div>
+            <a href="{% url 'core:manage_steps' process.pk %}" class="btn btn-outline-primary me-2">
+                <i class="fas fa-edit"></i> Редактировать блоки
+            </a>
+            <a href="{% url 'core:process_detail' process.pk %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Назад
+            </a>
+        </div>
+    </div>
+
+    <!-- ВИЗУАЛИЗАЦИЯ (ГЛАВНЫЙ БЛОК) -->
+    <div class="card shadow-sm border-0 mb-5">
+        <div class="card-body p-5 bg-light rounded-3">
+            
+            {% if steps %}
+                <!-- Контейнер для цепочки блоков -->
+                <div class="process-flow-container">
+                    
+{% for step in steps %}
+    <!-- БЛОК ШАГА -->
+    <div class="process-step gradient-{{ step.color }} position-relative" 
+         data-bs-toggle="tooltip" 
+         data-bs-placement="top"
+         title="{{ step.description|default:'Нет описания' }}">
+        
+        <!-- Счетчик уязвимостей (Badge) -->
+        {% with vulns_count=step.vulnerabilities.count %}
+            {% if vulns_count > 0 %}
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light shadow-sm" 
+                      style="z-index: 10;">
+                    {{ vulns_count }}
+                    <span class="visually-hidden">уязвимостей</span>
+                </span>
+            {% endif %}
+        {% endwith %}
+        <div class="step-content">
+            <div class="step-title">{{ step.name }}</div>
+            <div class="step-subtitle">
+                <!-- Если есть уязвимости, пишем об этом, иначе порядок -->
+                {% with vulns=step.vulnerabilities.all %}
+                    {% if vulns %}
+                        <div class="mt-2 text-warning fw-bold" style="font-size: 0.65rem; background: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 4px;">
+                            ⚠ {{ vulns.count }} ПРОБЛЕМ
+                        </div>
+                    {% else %}
+                        ШАГ {{ step.order }}
+                    {% endif %}
+                {% endwith %}
+            </div>
+        </div>
+
+    </div>
+
+    <!-- СТРЕЛКА -->
+    {% if not forloop.last %}
+        <div class="step-arrow">
+            <i class="fas fa-arrow-right"></i>
+        </div>
+    {% endif %}
+{% endfor %}
+
+
+                </div>
+                
+                <p class="text-center text-muted mt-5 small">
+                    <i class="fas fa-lightbulb text-warning"></i> Наведи на блоки, чтобы увидеть описание
+                </p>
+
+            {% else %}
+                <div class="text-center py-5">
+                    <h4 class="text-muted">Блоки еще не созданы</h4>
+                    <p>Создайте шаги, чтобы увидеть визуализацию.</p>
+                    <a href="{% url 'core:manage_steps' process.pk %}" class="btn btn-primary mt-3">Создать блоки</a>
+                </div>
+            {% endif %}
+
+        </div>
+    </div>
+
+    <!-- ТАБЛИЦА УЯЗВИМОСТЕЙ (Оставляем внизу для информации) -->
+    <div class="mt-5">
+        <h5 class="mb-3 text-secondary">Детали уязвимостей</h5>
+        <div class="card shadow border-0">
+            <div class="card-body p-0">
+                {% if vulnerabilities %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light text-secondary">
+                            <tr>
+                                <th class="ps-4">Уязвимость</th>
+                                <th>Критичность</th>
+                                <th>Статус</th>
+                                <th class="text-end pe-4">Действие</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for vuln in vulnerabilities %}
+                            <tr>
+                                <td class="ps-4 fw-bold">{{ vuln.title }}</td>
+                                <td>
+                                    <span class="badge rounded-pill bg-{% if vuln.severity >= 4 %}danger{% elif vuln.severity == 3 %}warning{% else %}info{% endif %}">
+                                        {{ vuln.get_severity_display }}
+                                    </span>
+                                </td>
+                                <td>{{ vuln.get_status_display }}</td>
+                                <td class="text-end pe-4">
+                                    <a href="{% url 'core:vulnerability_detail' vuln.pk %}" class="btn btn-sm btn-light">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                    <p class="p-4 text-center text-muted mb-0">Уязвимостей пока нет.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- CSS СТИЛИ (Вставляем прямо сюда или в CSS файл) -->
+<style>
+    /* Контейнер: выравниваем по центру, разрешаем перенос если не влезает */
+    .process-flow-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 20px;
+    }
+
+    /* Стиль стрелки */
+    .step-arrow {
+        font-size: 1.5rem;
+        color: #adb5bd;
+        margin: 0 10px;
+    }
+
+    /* Общий стиль блока (карточки) */
+    .process-step {
+        width: 180px;
+        height: 110px;
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        color: white;
+        box-shadow: 0 10px 25px -5px rgba(50, 50, 93, 0.25), 0 8px 16px -8px rgba(0, 0, 0, 0.3);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        position: relative;
+        cursor: pointer;
+    }
+
+    /* Эффект при наведении (подпрыгивание) */
+    .process-step:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 35px -5px rgba(50, 50, 93, 0.4), 0 10px 20px -8px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Текст внутри блока */
+    .step-content {
+        padding: 10px;
+    }
+    .step-title {
+        font-weight: 700;
+        font-size: 1rem;
+        margin-bottom: 5px;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .step-subtitle {
+        font-size: 0.75rem;
+        opacity: 0.9;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 600;
+    }
+
+    /* === ГРАДИЕНТЫ (Подстраиваем под цвета модели) === */
+
+    /* Primary (Синий) -> Фиолетовый градиент (как на фото блок 1) */
+    .gradient-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    /* Danger (Красный) -> Розовый градиент (как на фото блок 2) */
+    .gradient-danger {
+        background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%);
+        /* Чуть ярче для текста */
+        background: linear-gradient(to right, #ff512f, #dd2476); 
+    }
+
+    /* Info (Голубой) -> Голубой градиент (как на фото блок 3) */
+    .gradient-info {
+        background: linear-gradient(120deg, #89f7fe 0%, #66a6ff 100%);
+    }
+
+    /* Success (Зеленый) -> Изумрудный */
+    .gradient-success {
+        background: linear-gradient(to right, #0ba360, #3cba92);
+    }
+
+    /* Warning (Желтый) -> Оранжевый */
+    .gradient-warning {
+        background: linear-gradient(to right, #f09819, #edde5d); 
+        color: #4a4a4a; /* Темный текст для светлого фона */
+    }
+    .gradient-warning .step-title { text-shadow: none; }
+
+</style>
+
+<script>
+    // Инициализация тултипов Bootstrap
+    document.addEventListener('DOMContentLoaded', function() {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        })
+    });
+</script>
+{% endblock %}

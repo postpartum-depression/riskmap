@@ -452,20 +452,17 @@
                     <li><a href="{% url 'core:process_list' %}">
                         <i class="fas fa-project-diagram"></i> Процессы
                     </a></li>
-                    <li><a href="{% url 'core:vulnerability_list' %}">
-                        <i class="fas fa-bug"></i> Уязвимости
-                    </a></li>
                     <li><a href="{% url 'core:recommendations' %}">
                         <i class="fas fa-lightbulb"></i> Рекомендации
                     </a></li>
                     <li><a href="{% url 'core:profile' %}">
                         <i class="fas fa-user"></i> Профиль
                     </a></li>
-                    {% if user.is_superuser %}
-                    <li><a href="/admin/">
-                        <i class="fas fa-user-shield"></i> Админ
-                    </a></li>   
-                    {% endif %}
+                {% if user.is_superuser %}
+                <li><a href="{% url 'admin_panel:user_management' %}">
+                    <i class="fas fa-user-shield"></i> Админ
+                </a></li>    
+                {% endif %}
                     <li><a href="{% url 'authentication:logout' %}">
                         <i class="fas fa-sign-out-alt"></i> Выход ({{ user.username }})
                     </a></li>

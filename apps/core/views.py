@@ -2,6 +2,17 @@
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Count
+from django.forms import modelformset_factory
+from .models import BusinessProcess, Vulnerability, Recommendation, AuditLog, ProcessStep
+from .forms import (
+    BusinessProcessForm,
+    VulnerabilityForm,
+    VulnerabilityStatusForm,
+    RecommendationForm,
+    ProcessStepForm,
+)
+
+
 
 
 from .models import BusinessProcess, Vulnerability, Recommendation, AuditLog
@@ -51,30 +62,6 @@ def dashboard_view(request):
         'status_chart_closed': status_dict.get('closed', 0),
     }
     return render(request, 'core/dashboard.html', context)
-
-
-@login_required
-def import_processes(request):
-    """Импорт процессов из файла"""
-    if request.method == 'POST':
-        form = UploadFileForm(request.POST, request.FILES)
-        if form.is_valid() and request.FILES:
-            file = request.FILES['file']
-            count_created, count_skipped, errors = import_processes_from_file(file, request.user)
-            
-            if count_created > 0:
-                messages.success(request, f"✅ Успешно импортировано: {count_created} процессов")
-            
-            if errors:
-                for error in errors[:5]:
-                    messages.warning(request, error)
-            
-            return redirect('core:process_list')
-    else:
-        form = UploadFileForm()
-    
-    return render(request, 'core/import.html', {'form': form})
-
 
 @login_required
 def business_process_list(request):
@@ -290,14 +277,174 @@ def profile_view(request):
     return render(request, 'core/profile.html', context)
 
 @login_required
-def vulnerability_create(request):
+def vulnerability_create(request, process_pk):
+    """Создание уязвимости для конкретного процесса"""
+    process = get_object_or_404(BusinessProcess, pk=process_pk, owner=request.user)
+    
     if request.method == 'POST':
-        form = VulnerabilityForm(request.POST)
+        # Передаем process_id в форму
+        form = VulnerabilityForm(request.POST, process_id=process.pk)
+        if form.is_valid():
+            vuln = form.save(commit=False)
+            vuln.business_process = process
+            vuln.save()
+            messages.success(request, 'Уязвимость добавлена!')
+            return redirect('core:process_detail', pk=process.pk)
+    else:
+        form = VulnerabilityForm(process_id=process.pk)
+    
+    return render(request, 'core/vulnerability_form.html', {
+        'form': form, 
+        'title': f'Новая уязвимость для "{process.name}"',
+        'process': process
+    })
+
+@login_required
+def process_decomposition(request, pk):
+    """Декомпозиция процесса с визуализацией уязвимостей и шагов"""
+    process = get_object_or_404(BusinessProcess, pk=pk, owner=request.user)
+    vulnerabilities = Vulnerability.objects.filter(business_process=process)
+    steps = process.steps.all().order_by('order')  # Загружаем шаги
+    
+    # Статистика
+    critical_count = vulnerabilities.filter(severity=5).count()
+    high_count = vulnerabilities.filter(severity=4).count()
+    medium_count = vulnerabilities.filter(severity=3).count()
+    low_count = vulnerabilities.filter(severity__lte=2).count()
+    
+    context = {
+        'process': process,
+        'vulnerabilities': vulnerabilities,
+        'steps': steps,  # Передаем шаги в шаблон
+        'critical_count': critical_count,
+        'high_count': high_count,
+        'medium_count': medium_count,
+        'low_count': low_count,
+    }
+    return render(request, 'core/process_decomposition.html', context)
+
+@login_required
+def manage_process_steps(request, pk):
+    """Управление шагами процесса"""
+    process = get_object_or_404(BusinessProcess, pk=pk)
+    
+    # Формсет для управления несколькими шагами
+    StepFormSet = modelformset_factory(ProcessStep, form=ProcessStepForm, extra=1, can_delete=True)
+    
+    if request.method == 'POST':
+        formset = StepFormSet(request.POST, queryset=process.steps.all())
+        if formset.is_valid():
+            instances = formset.save(commit=False)
+            for instance in instances:
+                instance.business_process = process
+                instance.save()
+            # Удаляем удаленные
+            for obj in formset.deleted_objects:
+                obj.delete()
+            messages.success(request, 'Шаги процесса обновлены!')
+            return redirect('core:process_detail', pk=pk)
+    else:
+        formset = StepFormSet(queryset=process.steps.all())
+    
+    return render(request, 'core/manage_steps.html', {
+        'process': process,
+        'formset': formset,
+    })
+
+@login_required
+def business_process_detail(request, pk):
+    """Детали процесса с его уязвимостями"""
+    process = get_object_or_404(BusinessProcess, pk=pk, owner=request.user)
+    vulnerabilities = process.vulnerabilities.all()
+    steps = process.steps.all()  
+    
+    stats = {
+        'total': vulnerabilities.count(),
+        'critical': vulnerabilities.filter(severity=5).count(),
+        'high': vulnerabilities.filter(severity=4).count(),
+        'open': vulnerabilities.filter(status='open').count(),
+        'resolved': vulnerabilities.filter(status='resolved').count(),
+    }
+
+    context = {
+        'process': process,
+        'vulnerabilities': vulnerabilities,
+        'steps': steps,  
+        'stats': stats,
+    }
+    return render(request, 'core/business_process_detail.html', context)
+
+@login_required
+def vulnerability_detail(request, pk):
+    """Детали уязвимости + смена статуса"""
+    vulnerability = get_object_or_404(
+        Vulnerability, 
+        pk=pk, 
+        business_process__owner=request.user
+    )
+    
+    # Обработка смены статуса
+    if request.method == 'POST':
+        form = VulnerabilityStatusForm(request.POST, instance=vulnerability)
+        if form.is_valid():
+            old_status = vulnerability.status
+            vulnerability = form.save()
+            
+            # Пишем лог, если статус изменился
+            if old_status != vulnerability.status:
+                AuditLog.objects.create(
+                    vulnerability=vulnerability,
+                    user=request.user,
+                    action='status_changed',
+                    old_value=old_status,
+                    new_value=vulnerability.status
+                )
+                messages.success(request, f"Статус обновлен на '{vulnerability.get_status_display()}'")
+            return redirect('core:vulnerability_detail', pk=pk)
+    else:
+        form = VulnerabilityStatusForm(instance=vulnerability)
+
+    context = {
+        'vulnerability': vulnerability,
+        'form': form, # Передаем форму в шаблон
+        'recommendations': vulnerability.recommendations.all(),
+        'audit_logs': vulnerability.audit_logs.all(),
+    }
+    return render(request, 'core/vulnerability_detail.html', context)
+
+@login_required
+def vulnerability_delete(request, pk):
+    """Удаление уязвимости"""
+    vulnerability = get_object_or_404(Vulnerability, pk=pk, business_process__owner=request.user)
+    
+    if request.method == 'POST':
+        process_pk = vulnerability.business_process.pk
+        vulnerability.delete()
+        messages.success(request, 'Уязвимость удалена')
+        return redirect('core:process_detail', pk=process_pk)
+    
+    return render(request, 'core/vulnerability_confirm_delete.html', {'vulnerability': vulnerability})
+
+@login_required
+def vulnerability_edit(request, pk):
+    """Полное редактирование уязвимости"""
+    vuln = get_object_or_404(Vulnerability, pk=pk, business_process__owner=request.user)
+    
+    if request.method == 'POST':
+        form = VulnerabilityForm(request.POST, instance=vuln, process_id=vuln.business_process.pk)
         if form.is_valid():
             form.save()
-            messages.success(request, 'Уязвимость добавлена!')
-            return redirect('core:vulnerability_list')
+            messages.success(request, 'Уязвимость обновлена')
+            return redirect('core:vulnerability_detail', pk=vuln.pk)
     else:
-        form = VulnerabilityForm()
-    
-    return render(request, 'core/vulnerability_form.html', {'form': form, 'title': 'Новая уязвимость'})
+        form = VulnerabilityForm(instance=vuln, process_id=vuln.business_process.pk)
+        
+    return render(request, 'core/vulnerability_form.html', {
+        'form': form,
+        'title': f'Редактирование: {vuln.title}'
+    })
+
+
+
+
+

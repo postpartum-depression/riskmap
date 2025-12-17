@@ -2,7 +2,6 @@ from django.shortcuts import redirect
 from django.contrib import messages
 from functools import wraps
 
-
 def admin_required(view_func):
     """Декоратор для проверки прав администратора"""
     @wraps(view_func)
@@ -11,7 +10,8 @@ def admin_required(view_func):
             messages.error(request, 'Необходима авторизация')
             return redirect('authentication:login')
         
-        if not request.user.is_administrator:
+        # Проверяем стандартный флаг суперпользователя
+        if not request.user.is_superuser:
             messages.error(request, 'Доступ запрещен. Требуются права администратора.')
             return redirect('core:dashboard')
         
