@@ -1,29 +1,14 @@
-# Python
-*.pyc
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
+# Виртуальное окружение
 venv/
-ENV/
+env/
 
-# Django
-*.log
-local_settings.py
+# База данных (обычно ее не хранят в гите, если это не учебный пример)
 db.sqlite3
-db.sqlite3-journal
-/media
-/staticfiles
 
-# Environment
+# Кэш питона
+__pycache__/
+*.pyc
+
+# Настройки среды (если будешь использовать потом)
 .env
-
-# IDE
-.vscode/
-.idea/
-*.swp
-
-# OS
 .DS_Store
