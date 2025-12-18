@@ -1,53 +1,9 @@
-"""Бизнес-логика приложения"""
 import pandas as pd
-from .models import BusinessProcess, Vulnerability, Recommendation
-
-# База ключевых слов для автоматического обнаружения уязвимостей
-VULNERABILITY_PATTERNS = {
-    'платеж': {
-        'title': 'Уязвимость в обработке платежей',
-        'description': 'Процесс обрабатывает платежи. Необходимо проверить безопасность передачи данных карт, шифрование, соответствие PCI DSS.',
-        'severity': 4,
-    },
-    'персональные данные': {
-        'title': 'Риск утечки персональных данных',
-        'description': 'Процесс работает с персональными данными. Требуется проверка защиты от несанкционированного доступа, GDPR compliance.',
-        'severity': 5,
-    },
-    'api': {
-        'title': 'Слабая валидация входных данных API',
-        'description': 'Процесс использует API. Необходимо проверить валидацию параметров, защиту от SQL injection, XSS.',
-        'severity': 4,
-    },
-    'резервное копирование': {
-        'title': 'Проблемы с восстановлением после сбоя',
-        'description': 'Процесс включает резервное копирование. Требуется проверка целостности бэкапов и процедур восстановления.',
-        'severity': 3,
-    },
-    'аутентификация': {
-        'title': 'Слабая политика паролей',
-        'description': 'Процесс требует аутентификацию. Необходимо проверить сложность паролей, MFA, управление сессиями.',
-        'severity': 4,
-    },
-    'логирование': {
-        'title': 'Неправильное логирование',
-        'description': 'Процесс логирует данные. Важно убедиться, что в логах не сохраняются чувствительные данные.',
-        'severity': 3,
-    },
-    'внешний сервис': {
-        'title': 'Риск зависимости от внешнего сервиса',
-        'description': 'Процесс зависит от внешнего сервиса. Требуется проверка SLA, fallback механизмов.',
-        'severity': 3,
-    },
-}
-
+from .models import BusinessProcess, Vulnerability, Recommendation, VulnerabilityTemplate
 
 def import_processes_from_file(file, user):
     """
     Импортирует процессы из файла (Excel, CSV, JSON).
-    Автоматически создает уязвимости на основе ключевых слов.
-    
-    Returns: (count_created, count_skipped, errors)
     """
     try:
         # Определяем формат и читаем файл
@@ -80,9 +36,10 @@ def import_processes_from_file(file, user):
                     criticality=str(row.get('criticality', 'medium')).lower(),
                     is_active=True
                 )
-
-                # Автоматически анализируем описание и создаем уязвимости
-                analyze_and_create_vulnerabilities(process, row.get('description', ''))
+                
+                # --- ЗАПУСКАЕМ АВТО-АНАЛИЗ ---
+                auto_scan_process(process)
+                # -----------------------------
                 
                 count_created += 1
 
@@ -96,46 +53,65 @@ def import_processes_from_file(file, user):
         return 0, 0, [f"Ошибка при чтении файла: {str(e)}"]
 
 
-def analyze_and_create_vulnerabilities(process, description):
+def auto_scan_process(process):
     """
-    Анализирует описание процесса и автоматически создает уязвимости
-    на основе найденных ключевых слов.
+    Анализирует шаги процесса (и описание процесса) и создает уязвимости
+    на основе шаблонов из базы данных.
     """
-    if not description:
-        return
-
-    description_lower = str(description).lower()
-
-    for keyword, vuln_data in VULNERABILITY_PATTERNS.items():
-        if keyword in description_lower:
-            # Проверяем, не создана ли уже такая уязвимость
-            existing = Vulnerability.objects.filter(
-                business_process=process,
-                title=vuln_data['title']
-            ).exists()
-
-            if not existing:
-                vuln = Vulnerability.objects.create(
+    found_vulns = []
+    
+    # 1. Получаем все шаблоны из БД
+    templates = VulnerabilityTemplate.objects.all()
+    
+    # 2. Собираем тексты для анализа: Название процесса + Описание процесса
+    #    А также будем проходить по каждому шагу отдельно
+    
+    # --- АНАЛИЗ ШАГОВ (более точный) ---
+    for step in process.steps.all():
+        step_text = step.name.lower() + " " + step.description.lower()
+        
+        for template in templates:
+            # Разбиваем ключевые слова
+            keywords = [k.strip().lower() for k in template.keywords.split(',')]
+            
+            # Если ключевое слово найдено в названии/описании ШАГА
+            if any(keyword in step_text for keyword in keywords):
+                
+                # Проверяем дубликаты на этом шаге
+                exists = Vulnerability.objects.filter(
                     business_process=process,
-                    title=vuln_data['title'],
-                    description=vuln_data['description'],
-                    severity=vuln_data['severity'],
-                    status='open',
-                    is_auto_detected=True
-                )
+                    step=step,
+                    title=template.title
+                ).exists()
+                
+                if not exists:
+                    # Создаем уязвимость
+                    vuln = Vulnerability.objects.create(
+                        business_process=process,
+                        step=step,
+                        title=template.title,
+                        description=template.description,
+                        severity=template.severity,
+                        status='open'
+                    )
+                    
+                    # Создаем рекомендацию
+                    if template.mitigation:
+                        Recommendation.objects.create(
+                            vulnerability=vuln,
+                            title=f"Решение: {template.title}",
+                            content=template.mitigation,
+                            priority=3
+                        )
+                    
+                    found_vulns.append(vuln)
 
-                # Создаем автоматическую рекомендацию
-                Recommendation.objects.create(
-                    vulnerability=vuln,
-                    title=f"Автоматическая рекомендация: {vuln_data['title']}",
-                    content="Проведите подробный аудит этого компонента системы. Обратитесь к специалистам по безопасности.",
-                    priority=vuln_data['severity']
-                )
+    return found_vulns
+
 
 def calculate_risk_metrics(user):
     """
     Вычисляет основные метрики риска для пользователя.
-    Returns: dict с метриками
     """
     vulnerabilities = Vulnerability.objects.filter(business_process__owner=user)
     

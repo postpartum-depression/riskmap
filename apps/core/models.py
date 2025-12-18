@@ -209,3 +209,29 @@ class AuditLog(models.Model):
 
     def __str__(self):
         return f"{self.vulnerability.title} - {self.get_action_display()} ({self.timestamp})"
+    
+    # 6. БАНК УЯЗВИМОСТЕЙ (Новая модель для авто-подбора)
+class VulnerabilityTemplate(models.Model):
+    """Шаблон уязвимости для базы знаний"""
+    title = models.CharField('Название', max_length=255)
+    description = models.TextField('Описание')
+    severity = models.IntegerField(
+        'Базовая серьезность', 
+        choices=Vulnerability.SEVERITY_CHOICES, 
+        default=3
+    )
+    
+    # Ключевые слова для поиска (например: "вход, login, auth")
+    keywords = models.TextField('Ключевые слова', help_text="Слова через запятую для авто-поиска")
+    
+    # Рекомендация по умолчанию
+    mitigation = models.TextField('Рекомендация по устранению', blank=True, help_text="Шаблон решения проблемы")
+
+    class Meta:
+        verbose_name = 'Шаблон уязвимости'
+        verbose_name_plural = 'Банк уязвимостей'
+
+    def __str__(self):
+        return self.title
+
+

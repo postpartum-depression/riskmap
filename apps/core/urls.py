@@ -33,4 +33,7 @@ urlpatterns = [
     path('recommendations/', views.recommendations_view, name='recommendations'),
     path('vulnerabilities/<int:vulnerability_pk>/recommendation/add/', views.add_recommendation, name='add_recommendation'),
     path('profile/', views.profile_view, name='profile'),
+     
+    # Автоскан
+    path('processes/<int:pk>/autoscan/', views.process_auto_scan, name='process_autoscan'),
 ]

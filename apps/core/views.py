@@ -11,6 +11,7 @@ from .forms import (
     RecommendationForm,
     ProcessStepForm,
 )
+from .services import auto_scan_process
 
 
 
@@ -443,6 +444,20 @@ def vulnerability_edit(request, pk):
         'form': form,
         'title': f'Редактирование: {vuln.title}'
     })
+
+@login_required
+def process_auto_scan(request, pk):
+    process = get_object_or_404(BusinessProcess, pk=pk, owner=request.user)
+    
+    # Запускаем сканер
+    new_vulns = auto_scan_process(process)
+    
+    if new_vulns:
+        messages.success(request, f'Найдено и добавлено {len(new_vulns)} уязвимостей!')
+    else:
+        messages.info(request, 'Автоматический поиск не нашел новых совпадений для текущих шагов.')
+        
+    return redirect('core:process_decomposition', pk=pk)
 
 
 
