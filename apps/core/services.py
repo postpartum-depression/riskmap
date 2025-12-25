@@ -1,57 +1,4 @@
-import pandas as pd
 from .models import BusinessProcess, Vulnerability, Recommendation, VulnerabilityTemplate
-
-def import_processes_from_file(file, user):
-    """
-    Импортирует процессы из файла (Excel, CSV, JSON).
-    """
-    try:
-        # Определяем формат и читаем файл
-        if file.name.endswith('.csv'):
-            df = pd.read_csv(file)
-        elif file.name.endswith(('.xls', '.xlsx')):
-            df = pd.read_excel(file)
-        elif file.name.endswith('.json'):
-            df = pd.read_json(file)
-        else:
-            return 0, 0, ["Неподдерживаемый формат файла"]
-
-        count_created = 0
-        count_skipped = 0
-        errors = []
-
-        for idx, row in df.iterrows():
-            try:
-                # Проверяем наличие обязательного поля 'name'
-                if pd.isna(row.get('name')) or row['name'].strip() == '':
-                    count_skipped += 1
-                    errors.append(f"Строка {idx + 2}: Отсутствует название процесса")
-                    continue
-
-                # Создаем процесс
-                process = BusinessProcess.objects.create(
-                    owner=user,
-                    name=str(row['name']).strip(),
-                    description=str(row.get('description', '')).strip(),
-                    criticality=str(row.get('criticality', 'medium')).lower(),
-                    is_active=True
-                )
-                
-                # --- ЗАПУСКАЕМ АВТО-АНАЛИЗ ---
-                auto_scan_process(process)
-                # -----------------------------
-                
-                count_created += 1
-
-            except Exception as e:
-                count_skipped += 1
-                errors.append(f"Строка {idx + 2}: {str(e)}")
-
-        return count_created, count_skipped, errors
-
-    except Exception as e:
-        return 0, 0, [f"Ошибка при чтении файла: {str(e)}"]
-
 
 def auto_scan_process(process):
     """
@@ -64,9 +11,7 @@ def auto_scan_process(process):
     templates = VulnerabilityTemplate.objects.all()
     
     # 2. Собираем тексты для анализа: Название процесса + Описание процесса
-    #    А также будем проходить по каждому шагу отдельно
-    
-    # --- АНАЛИЗ ШАГОВ (более точный) ---
+
     for step in process.steps.all():
         step_text = step.name.lower() + " " + step.description.lower()
         

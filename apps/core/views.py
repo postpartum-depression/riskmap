@@ -21,7 +21,6 @@ from .forms import (
     BusinessProcessForm, VulnerabilityForm,
     VulnerabilityStatusForm, RecommendationForm
 )
-from .services import import_processes_from_file
 
 
 def home_view(request):
