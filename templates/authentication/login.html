@@ -117,6 +117,8 @@
             <h1> RiskMap</h1>
             <p>Вход в систему</p>
         </div>
+        <div class="text-center mt-3">
+
         
         {% if messages %}
         <div class="messages">
@@ -143,6 +145,11 @@
             
             <button type="submit" class="btn">Войти</button>
         </form>
+
+            <a href="{% url 'authentication:password_reset' %}" class="text-decoration-none">
+        Забыли пароль?
+    </a>
+</div>
         
         <div class="register-link">
             Нет аккаунта? <a href="{% url 'authentication:register' %}">Зарегистрируйтесь</a>
